@@ -23,7 +23,7 @@ vCard = {
       properties: /((type=)?(.+);?)+/
     }
  
-    var lines = _input.split('\n');
+    var lines = _input.split(/\r?\n/);
     for (n in lines) {
       line = lines[n];
       
