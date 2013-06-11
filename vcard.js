@@ -15,6 +15,21 @@ vCard = {
     vc.prototype = vCard.Base;
     return vCard.extend(vc, vCard.SingletonMethods);
   },
+  decodeQuotedPrintable: function(str){
+    str = (str || "").toString();
+    str = str.replace(/\=(?:\r?\n|$)/g, "");
+    var str2 = "";
+    for(var i=0, len = str.length; i<len; i++){
+        chr = str.charAt(i);
+        if(chr == "=" && (hex = str.substr(i+1, 2)) && /[\da-fA-F]{2}/.test(hex)){
+            str2 += String.fromCharCode(parseInt(hex,16));
+            i+=2;
+            continue;
+        }
+        str2 += chr;
+    }
+    return str2;
+  },
   parse: function(_input, fields) {
     var regexps = {
       simple: /^(version|fn|title|org)\:(.+)$/i,
@@ -22,10 +37,11 @@ vCard = {
       key: /item\d{1,2}\./,
       properties: /((type=)?(.+);?)+/
     }
+
+    var results, value, fields, key, properties, type;
  
     var lines = _input.split(/\r?\n/);
-    for (n in lines) {
-      line = lines[n];
+    for (var i=0,line;line = lines[i];i++) {
       
       if(regexps['simple'].test(line))
       {
@@ -47,13 +63,26 @@ vCard = {
         
         type = properties.pop() || 'default';
         type = type.toLowerCase();
-        
-        value = results[3];
-        value = /;/.test(value) ? [value.split(';')] : value;
 
+        if(type == 'encoding=quoted-printable'){
+          type = properties.pop();
+          value = results[3];
+          while(value.substr(-1) == '='){
+            value = value.slice(0,-1);
+            i++;
+            value += lines[i]; 
+          }
+          value = this.decodeQuotedPrintable(value);
+        }
+        else{
+          value = results[3];
+          value = /;/.test(value) ? [value.split(';')] : value;
+        }
+        
         fields[key] = fields[key] || {};
         fields[key][type] = fields[key][type] || [];
         fields[key][type] = fields[key][type].concat(value);
+
       }
     }
   },
